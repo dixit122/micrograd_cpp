@@ -1,42 +1,42 @@
 #include <bits/stdc++.h>
+#include <cassert>
+#include <cmath>
 #include <functional>
 #include <memory>
 
-class value
+class Value
 {
 
 public:
     double data;
     std::string label;
-    std::vector<std::shared_ptr<value>> children;
+    std::vector<std::shared_ptr<Value>> children;
     double grad;
-    std::function<void(void)> _backward;
+    std::function<void(Value&)> _backward;
     std::string op;
 
-/* disabling the default copy constructor */
-/*     value(const value& other) = delete; */
- // copy constructor
-    value(const value& other) 
-        : data(other.data), 
-        label(other.label), 
-        children(other.children), 
-        grad(other.grad), 
-        _backward(other._backward), 
+    // copy constructor
+    Value(const Value& other)
+        : data(other.data),
+        label(other.label),
+        children(other.children),
+        grad(other.grad),
+        _backward(other._backward),
         op(other.op) {
-/*         std::cout << "copy constructor called\n"; */
     }
-/* explicitely defining the default constuctor */
-    value() = default;
 
-/* main constructor */
-    value(double _data,std::string _label = "",std::vector<std::shared_ptr<value>> _children = {nullptr,nullptr},std::string _op = "",std::function<void(void)> __backward = nullptr):data(_data),label(std::move(_label)),children(std::move(_children)),op(std::move(_op)),_backward(__backward),grad(double(0.0)) {}
+    /* explicitely defining the default constuctor */
+    Value() = default;
 
-/* move constructor */
-    value(value &&other) noexcept : data(std::move(other.data)),label(std::move(other.label)),children(std::move(other.children)),op(std::move(other.op)),_backward(std::move(other._backward)),grad(std::move(other.grad)){std::cout << "move constructor called\n";}
+    /* main constructor */
+    Value(double _data,std::string _label = "",std::vector<std::shared_ptr<Value>> _children = {nullptr,nullptr},std::string _op = "",std::function<void(Value&)> __backward = nullptr):data(_data),label(std::move(_label)),children(std::move(_children)),op(std::move(_op)),_backward(__backward),grad(double(0.0)) {}
+
+    /* move constructor */
+    Value(Value &&other) noexcept : data(std::move(other.data)),label(std::move(other.label)),children(std::move(other.children)),op(std::move(other.op)),_backward(std::move(other._backward)),grad(std::move(other.grad)){std::cout << "move constructor called\n";}
 
 
-/* assignment move constructor */
-    value& operator=(value &&other) noexcept  {
+    /* assignment move constructor */
+    Value& operator=(Value &&other) noexcept  {
 
         std::cout << "move operator = called\n";
 
@@ -50,99 +50,125 @@ public:
         return *this;
     }
 
-/* destructor */
-    ~value(){
-        /* for(std::shared_ptr<value> child: children){
-            child.reset();
-        } */
-    }
+    /* destructor */
+    ~Value(){}
 
-/* for printing the value object (right now implemented by overloading the ostream << operator)*/
-    friend std::ostream& operator<<(std::ostream &out_stream, value &obj) noexcept {
+    /* for printing the Value object (right now implemented by overloading the ostream << operator)*/
+    friend std::ostream& operator<<(std::ostream &out_stream, Value &obj) noexcept {
         out_stream << obj.label << " = " << obj.data << "\n";
         return out_stream;
     }
 
-/* operation definitions for value objects */
+    /* operation definitions for Value objects */
 
     // addition
+    Value& operator+(Value &other){
 
-    value& operator+(value &other){
-
-        value* out = new value();
+        Value* out = new Value();
         out->data = this->data + other.data;
-        std::vector<std::shared_ptr<value>> __children = {std::make_shared<value>(*this),std::make_shared<value>(other)};
+        std::vector<std::shared_ptr<Value>> __children = {std::make_shared<Value>(*this),std::make_shared<Value>(other)};
         out->op = "+";
-        out->_backward = [&](void){
+        out->_backward = [&](Value& this_ref){
             //local_out = a + b
             //dlocal_out/da = 1
             //dlocal_out/db = 1
             //dloss/dlocal_out = out.grad
             //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * 1.0
             //dloss/db = dloss/dlocal_out * dlocal_out/db = out.grad * 1.0
-            this->grad += double(1.0);
-            other.grad += double(1.0); 
+            this->grad += double(1.0) * this_ref.grad;
+            other.grad += double(1.0) * this_ref.grad;
         };
 
-        /* return value(new_data,"",__children,__op,__backward); */
+        /* return Value(new_data,"",__children,__op,__backward); */
         return *out;
     }
 
-    // for supporting the value + double
-    value& operator+(double val){
+    // for supporting the Value + double
+    Value& operator+(double val){
 
-        value* val_obj = new value(val);
+        Value *val_obj = new Value(val);
         return (*this + *val_obj);
     }
 
-    // for supporting the double + value 
-    friend value& operator+(double val,value &other){
+    // for supporting the double + Value
+    friend Value& operator+(double val,Value &other){
 
         return other + val;
     }
 
 
     // multiplication
+    Value& operator*(Value& other){
 
-    value& operator*(value& other){
-
-        value *out = new value();
+        Value *out = new Value();
         out->data = this->data * other.data;
         out->label = "";
-        out->children = {std::make_shared<value>(*this),std::make_shared<value>(other)};
-        value &out_ref = *out;
-        out->_backward = [out_ref,this,&other](void){
+        out->children = {std::make_shared<Value>(*this),std::make_shared<Value>(other)};
+        Value &out_ref = *out;
+        out->_backward = [&](Value &this_ref){
             //local_out = a*b
-            //dy/da = b
-            //dy/ab = a
+            //dlocal_out/da = b
+            //dlocal_out/ab = a
             //dloss/dlocal_out = out.grad
             //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * b
             //dloss/db = dloss/dlocal_out * dlocal_out/db = out.grad * a
-            //std::cout << "backward called\n";
-            //std::cout << this->data << " " << other.data << " " << out->grad << '\n';
-            this->grad += (other.data)*(out_ref.grad);
-            other.grad += (this->data)*(out_ref.grad);
+            std::cout << this->data << " " << other.data << " " << this_ref.grad << '\n';
+            this->grad += (other.data)*(this_ref.grad);
+            other.grad += (this->data)*(this_ref.grad);
         };
-        std::cout << "logs : " << &(out->grad) << "\n";
-        std::cout << "v1.grad : " << &(this->grad) << "\n";
-        std::cout << "v2.grad : " << &(other.grad) << "\n";
         return *out;
     }
+
+    Value& operator*(double val){
+        std::cout << "value - double is called\n";
+        Value *other = new Value(val);
+        return (*this)*(*other);
+    }
+
+    friend Value& operator*(double val,Value& other){
+        return other * val;
+    }
+
+
+    // substraction
+    Value& operator-(Value& other){
+        std::cout << "value - value is called\n";
+        Value *tmp = new Value();
+        *tmp = std::move(other * (-1.0));
+        return ((*this) + *tmp);
+    }
+
+    Value& operator-(double val) {
+        Value *other = new Value(val);
+        return ((*this) - (*other));
+    }
+
+    friend Value& operator-(double val,Value& other){
+        return other - val;
+    }
+
+    //power
+    Value& operator^(double val){
+        Value* new_obj = new Value();
+        new_obj->data = std::pow(this->data,val);
+        new_obj->children = std::vector<std::shared_ptr<Value>>({std::make_shared<Value>(*this),nullptr});
+        new_obj->op = "^";
+        new_obj->_backward = [&](Value& this_ref){
+            //local_out = a^val
+            //dlocal_out/da = val*(a^(val-1))
+            //dloss/dlocal_out = out.grad
+            //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * (val*(a^(val-1)))
+            this->grad = (val*(std::pow(this->data,val-1)))* this_ref.grad;
+        };
+        return *new_obj;
+    }
+
 };
 
 int main()
 {
-    value v1(2,"a");
-    value v2(3,"b");
+    Value v1(2,"a");
+    Value v2(3,"b");
 
-    value v3 = std::move(v1 * v2);
-
-    std::cout << "logs : " << &(v3.grad) << "\n";
-    std::cout << "v1.grad : " << &(v1.grad) << "\n";
-    std::cout << "v2.grad : " << &(v2.grad) << "\n";
-    v3.grad = 2.0;
-    v3._backward();
-
-    std::cout << v3;
-    std::cout << v1.grad << " " << v2.grad << " " << v3.grad << "\n";
+    Value v3 = std::move(v1 - v2);
 }
