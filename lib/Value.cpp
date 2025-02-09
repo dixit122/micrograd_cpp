@@ -46,6 +46,7 @@ Value operator+(double val,Value &other){
 // multiplication
 Value Value::operator*(Value& other){
     Value out = Value();
+    out.ptr = std::make_shared<valueData>();
     out.ptr->data = this->ptr->data * other.ptr->data;
     out.ptr->label = "*";
     out.ptr->children = {this->ptr,other.ptr};
@@ -91,16 +92,17 @@ Value operator-(double val,Value& other){
 
 //power
 Value Value::operator^(double val){
-    Value new_obj = Value();
-    new_obj.ptr->data = std::pow(this->ptr->data,val);
-    new_obj.ptr->children = {this->ptr,nullptr};
-    new_obj.ptr->op = "^";
-    new_obj.ptr->_backward = [&](valueData& this_ref){
+    Value out = Value();
+    out.ptr = std::make_shared<valueData>();
+    out.ptr->data = std::pow(this->ptr->data,val);
+    out.ptr->children = {this->ptr,nullptr};
+    out.ptr->op = "^";
+    out.ptr->_backward = [&](valueData& this_ref){
         //local_out = a^val
         //dlocal_out/da = val*(a^(val-1))
         //dloss/dlocal_out = out.grad
         //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * (val*(a^(val-1)))
         this->ptr->grad = (val*(std::pow(this->ptr->data,val-1)))* this_ref.grad;
     };
-    return new_obj;
+    return out;
 }
