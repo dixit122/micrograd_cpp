@@ -8,6 +8,7 @@ int main()
     Value c(4,"c");
     Value d(5,"d");
 
+/*     Value e = std::move(a); */
     Value e = a + b;e.ptr->label = "e";
     Value f = c * d;f.ptr->label = "f";
     Value g = e * f;g.ptr->label = "g";

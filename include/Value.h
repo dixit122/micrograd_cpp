@@ -11,14 +11,14 @@ public:
     std::string label;
     std::vector<std::shared_ptr<valueData>> children;
     double grad;
-    std::function<void(valueData&)> _backward;
+    std::function<void()>_backward;
     std::string op;
 
     /* default constructor */
     valueData() = default;
 
     /* main constructor */
-    valueData(double _data,std::string _label = "",std::vector<std::shared_ptr<valueData>> _children = {nullptr,nullptr},std::string _op = "",std::function<void(valueData&)> __backward = nullptr):data(_data),label(std::move(_label)),children(std::move(_children)),op(std::move(_op)),_backward(__backward),grad(double(0.0)) {std::cout << "main constructor called for _data = " << _data << std::endl;}
+    valueData(double _data,std::string _label = "",std::vector<std::shared_ptr<valueData>> _children = {nullptr,nullptr},std::string _op = "",std::function<void()> __backward = nullptr):data(_data),label(std::move(_label)),children(std::move(_children)),op(std::move(_op)),_backward(__backward),grad(double(0.0)) {}
 
     /* destructor */
     ~valueData(){}
@@ -36,7 +36,7 @@ public:
     Value() = default;
 
     /* main constructor */
-    Value(double _data,std::string _label = "",std::vector<std::shared_ptr<valueData>> _children = {nullptr,nullptr},std::string _op = "",std::function<void(valueData&)> __backward = nullptr){
+    Value(double _data,std::string _label = "",std::vector<std::shared_ptr<valueData>> _children = {nullptr,nullptr},std::string _op = "",std::function<void()> __backward = nullptr){
         ptr = std::make_shared<valueData>(_data,_label,_children,_op,__backward);
     }
 
@@ -58,7 +58,7 @@ public:
             if(this->ptr != nullptr){
                 Value::tmpObjs.push_back(this->ptr);
             }
-            this->ptr = std::make_shared<valueData>(*other.ptr);
+            this->ptr = other.ptr;
         }
         return *this;
     }
@@ -70,7 +70,6 @@ public:
             if(this->ptr != nullptr){
                 Value::tmpObjs.push_back(this->ptr);
             }
-
             this->ptr = other.ptr;
             other.ptr.reset();
         }
@@ -100,15 +99,13 @@ public:
         std::queue<std::shared_ptr<valueData>> q;
 
         q.push(std::make_shared<valueData>(*(this->ptr)));
-        std::cout << "inside backward\n";
 
         while(!q.empty()){
             std::shared_ptr<valueData> top_child = q.front();
             q.pop();
 
             if(top_child->_backward != nullptr){
-                std::cout << "top_child data = " << top_child->data << std::endl;
-                top_child->_backward(*top_child);
+                top_child->_backward();
 
                 for(auto child: top_child->children){
                     if(child != nullptr){
