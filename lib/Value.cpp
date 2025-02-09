@@ -14,19 +14,13 @@ Value& Value::operator+(Value &other){
 
     Value* out = new Value();
     out->data = this->data + other.data;
-    std::vector<std::shared_ptr<Value>> __children = {std::make_shared<Value>(*this),std::make_shared<Value>(other)};
+    out->children = {this,&other};
     out->op = "+";
     out->_backward = [&](Value& this_ref){
-        //local_out = a + b
-        //dlocal_out/da = 1
-        //dlocal_out/db = 1
-        //dloss/dlocal_out = out.grad
-        //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * 1.0
-        //dloss/db = dloss/dlocal_out * dlocal_out/db = out.grad * 1.0
         this->grad += double(1.0) * this_ref.grad;
         other.grad += double(1.0) * this_ref.grad;
+        std::cout << "HERE: " << this->data << " " << this->grad << "  ---  " << other.data << " "  << other.grad << '\n';
     };
-    /* return Value(new_data,"",__children,__op,__backward); */
     return *out;
 }
 
@@ -50,16 +44,9 @@ Value& Value::operator*(Value& other){
     Value *out = new Value();
     out->data = this->data * other.data;
     out->label = "";
-    out->children = {std::make_shared<Value>(*this),std::make_shared<Value>(other)};
+    out->children = {this,&other};
     Value &out_ref = *out;
     out->_backward = [&](Value &this_ref){
-        //local_out = a*b
-        //dlocal_out/da = b
-        //dlocal_out/ab = a
-        //dloss/dlocal_out = out.grad
-        //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * b
-        //dloss/db = dloss/dlocal_out * dlocal_out/db = out.grad * a
-        std::cout << this->data << " " << other.data << " " << this_ref.grad << '\n';
         this->grad += (other.data)*(this_ref.grad);
         other.grad += (this->data)*(this_ref.grad);
     };
@@ -67,43 +54,93 @@ Value& Value::operator*(Value& other){
 }
 
 Value& Value::operator*(double val){
+
     Value *other = new Value(val);
     return (*this)*(*other);
 }
 
 Value& operator*(double val,Value& other){
+
     return other * val;
 }
 
 
 // substraction
 Value& Value::operator-(Value& other){
+    
     Value *tmp = new Value();
     *tmp = std::move(other * (-1.0));
     return ((*this) + *tmp);
 }
 
 Value& Value::operator-(double val) {
+
     Value *other = new Value(val);
     return ((*this) - (*other));
 }
 
 Value& operator-(double val,Value& other){
-    return other - val;
+
+    return val + (-1 * other);
 }
 
+
 //power
-Value& Value::operator^(double val){
+Value& Value::operator^(Value& other){
+
     Value* new_obj = new Value();
-    new_obj->data = std::pow(this->data,val);
-    new_obj->children = std::vector<std::shared_ptr<Value>>({std::make_shared<Value>(*this),nullptr});
+    new_obj->data = std::pow(this->data,other.data);
+    // new_obj->children = std::vector<Value *>({this,&other});
+    new_obj->children = {this,&other};
     new_obj->op = "^";
     new_obj->_backward = [&](Value& this_ref){
-        //local_out = a^val
-        //dlocal_out/da = val*(a^(val-1))
-        //dloss/dlocal_out = out.grad
-        //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * (val*(a^(val-1)))
-        this->grad = (val*(std::pow(this->data,val-1)))* this_ref.grad;
+        // this->grad += (other.data*(std::pow(this->data,other.data-1)))* this_ref.grad;
+        // other.grad += (log(this->data) * new_obj->data)* this_ref.grad;
+        this->grad += (std::pow(this->data, other.data) * other.data / this->data) * this_ref.grad;
+        other.grad += (std::pow(this->data, other.data) * log(this->data)) * this_ref.grad;
     };
     return *new_obj;
+}
+
+Value& Value::operator^(double val){
+
+    Value *val_obj = new Value(val);
+    return ((*this) ^ (*val_obj));
+}
+
+Value& operator^(double val, Value& other){
+
+    Value *new_val = new Value(val);
+    return (*new_val) ^ other;
+}
+
+/*Functions and helpers for calculating grad*/
+// Topo Sort
+void Value::__topoSort(Value &node,  std::vector<Value*> &order){
+
+    for(auto &child: node.children){
+        // if(child != nullptr){
+            child->__topoSort(*child, order);
+        // }
+    }
+    order.push_back(&node);
+}
+
+//Backward 
+void Value::backward(){
+
+    std::vector<Value *> order;
+    this->__topoSort(*this, order);
+    std::reverse(order.begin(), order.end());
+    this->grad = 1;
+    printf("%p %p\n", &(this->children[0]), &(order[0]->children[0]));
+    // printf("%p %p\n", );
+    for(auto node: order){
+        // std::cout << "This one: " << node->data << '\n';
+        if(node->_backward != nullptr){
+            node->_backward(*node);
+            // std::cout << node->data << " " << node->grad << '\n';
+        }
+        // node->data = 11;
+    }
 }

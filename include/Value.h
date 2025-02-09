@@ -1,13 +1,20 @@
 #pragma once
-#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <memory>
+#include <functional>
+#include <string>
 
 class Value
 {
 
+private:
+void __topoSort(Value&, std::vector<Value*> &order);
+
 public:
     double data;
     std::string label;
-    std::vector<std::shared_ptr<Value>> children;
+    std::vector<Value*> children;
     double grad;
     std::function<void(Value&)> _backward;
     std::string op;
@@ -19,7 +26,7 @@ public:
     Value() = default;
 
     /* main constructor */
-    Value(double _data,std::string _label = "",std::vector<std::shared_ptr<Value>> _children = {nullptr,nullptr},std::string _op = "",std::function<void(Value&)> __backward = nullptr):data(_data),label(std::move(_label)),children(std::move(_children)),op(std::move(_op)),_backward(__backward),grad(double(0.0)) {}
+    Value(double _data,std::string _label = "",std::vector<Value*> _children = {},std::string _op = "",std::function<void(Value&)> __backward = nullptr):data(_data),label(std::move(_label)),children(std::move(_children)),op(std::move(_op)),_backward(__backward),grad(double(0.0)) {}
 
     /* move constructor */
     Value(Value&& other) noexcept : data(std::move(other.data)),label(std::move(other.label)),children(std::move(other.children)),op(std::move(other.op)),_backward(std::move(other._backward)),grad(std::move(other.grad)){}
@@ -61,5 +68,9 @@ public:
     friend Value& operator-(double, Value&);
 
     //power
+    Value& operator^(Value&);
     Value& operator^(double);
+    friend Value& operator^(double, Value&);
+
+    void backward();
 };
