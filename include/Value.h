@@ -1,7 +1,8 @@
 #pragma once
-#include <bits/stdc++.h>
 #include <memory>
 #include <vector>
+#include <functional>
+#include <iostream>
 
 
 class valueData{
@@ -134,5 +135,7 @@ public:
     friend Value operator-(double, Value&);
 
     //power
+    Value operator^(Value&);
     Value operator^(double);
+    friend Value operator^(double, Value&);
 };

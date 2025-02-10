@@ -20,12 +20,6 @@ Value Value::operator+(Value &other){
     out.ptr->op = "+";
     std::shared_ptr<valueData> out_ptr = out.ptr;
     out.ptr->_backward = [out_ptr](){
-        //local_out = a + b
-        //dlocal_out/da = 1
-        //dlocal_out/db = 1
-        //dloss/dlocal_out = out.grad
-        //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * 1.0
-        //dloss/db = dloss/dlocal_out * dlocal_out/db = out.grad * 1.0
         out_ptr->children[0]->grad += double(1.0) * out_ptr->grad;
         out_ptr->children[1]->grad += double(1.0) * out_ptr->grad;
     };
@@ -51,17 +45,10 @@ Value Value::operator*(Value& other){
     out.ptr->data = this->ptr->data * other.ptr->data;
     out.ptr->label = "*";
     out.ptr->children = {this->ptr,other.ptr};
-    Value &out_ref = out;
     std::shared_ptr<valueData> out_ptr = out.ptr;
-    out.ptr->_backward = [out_ptr, this](){
-        //local_out = a*b
-        //dlocal_out/da = b
-        //dlocal_out/ab = a
-        //dloss/dlocal_out = out.grad
-        //dloss/da = dloss/dlocal_out * dlocal_out/da = out.grad * b
-        //dloss/db = dloss/dlocal_out * dlocal_out/db = out.grad * a
+    out.ptr->_backward = [out_ptr](){
         out_ptr->children[0]->grad += (out_ptr->children[1]->data)*(out_ptr->grad);
-        out_ptr->children[1]->grad += (this->ptr->data)*(out_ptr->grad);
+        out_ptr->children[1]->grad += (out_ptr->children[0]->data)*(out_ptr->grad);
     };
     return out;
 }
@@ -89,6 +76,36 @@ Value Value::operator-(double val) {
 }
 
 Value operator-(double val,Value& other){
-    return other - val;
+    Value tmp = Value(val);
+    return tmp - other;
 }
 
+//power
+Value Value::operator^(Value& other){
+
+    Value out = Value();
+    out.ptr = std::make_shared<valueData>();
+    out.ptr->data = std::pow(this->ptr->data,other.ptr->data);
+    out.ptr->label = "^";
+    out.ptr->children = {this->ptr, other.ptr};
+    std::shared_ptr<valueData> out_ptr = out.ptr;
+    out.ptr->_backward = [out_ptr](){
+        int this_data = out_ptr->children[0]->data;
+        int other_data = out_ptr->children[1]->data;
+        out_ptr->children[0]->grad += (std::pow(this_data, other_data) * other_data / this_data) * out_ptr->grad;
+        out_ptr->children[1]->grad += (std::pow(this_data, other_data) * log(this_data)) * out_ptr->grad;
+    };
+    return out;
+}
+
+Value Value::operator^(double val){
+
+    Value other = Value(val);
+    return ((*this) ^ (other));
+}
+
+Value operator^(double val, Value& other){
+
+    Value tmp = Value(val);
+    return tmp ^ other;
+}
