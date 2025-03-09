@@ -28,6 +28,19 @@ class Value
 {
 private:
     inline static std::vector<std::shared_ptr<valueData>> tmpObjs;
+    void topoSort(std::shared_ptr<valueData>& currNode,std::vector<std::shared_ptr<valueData>> &topoSequence,std::set<std::shared_ptr<valueData>> &visited){
+        if(currNode == nullptr){
+            return;
+        }
+        visited.insert(currNode);
+        for(auto child: currNode->children){
+            if(!visited.count(child)){
+                topoSort(child, topoSequence, visited);
+            }
+        }
+        topoSequence.push_back(currNode);
+    }
+
 
 public:
     std::shared_ptr<valueData> ptr;
@@ -54,7 +67,6 @@ public:
     /* assignment copy constructor */
     Value& operator=(const Value& other){
         if(this != &other){
-            std::cout << "assignment operator called\n";
             if(this->ptr != nullptr){
                 Value::tmpObjs.push_back(this->ptr);
             }
@@ -66,7 +78,6 @@ public:
     /* assignment move constructor */
     Value operator=(Value&& other) noexcept {
         if(this != &other){
-            std::cout << "assignment move constructor called\n";
             if(this->ptr != nullptr){
                 Value::tmpObjs.push_back(this->ptr);
             }
@@ -94,25 +105,23 @@ public:
 
     /* backward function */
     void backward(){
-
         this->ptr->grad = 1.0;
-        std::queue<std::shared_ptr<valueData>> q;
+        std::vector<std::shared_ptr<valueData>> topoSequence;
+        std::set<std::shared_ptr<valueData>> visited;
+        topoSort(this->ptr,topoSequence,visited);
+        for(auto it=topoSequence.rbegin();it != topoSequence.rend();++it){
+            if((*it)->_backward)
+                (*it)->_backward();
+        }
+    }
 
-        q.push(std::make_shared<valueData>(*(this->ptr)));
-
-        while(!q.empty()){
-            std::shared_ptr<valueData> top_child = q.front();
-            q.pop();
-
-            if(top_child->_backward != nullptr){
-                top_child->_backward();
-
-                for(auto child: top_child->children){
-                    if(child != nullptr){
-                        q.push(child);
-                    }
-                }
-            }
+    /* reset all grads function */
+    void resetAllGrads(){
+        std::vector<std::shared_ptr<valueData>> topoSequence;
+        std::set<std::shared_ptr<valueData>> visited;
+        topoSort(this->ptr,topoSequence,visited);
+        for(auto it=topoSequence.rbegin();it != topoSequence.rend();++it){
+            (*it)->grad = 0.0;
         }
     }
 
@@ -134,5 +143,6 @@ public:
     friend Value operator-(double, Value&);
 
     //power
+    Value operator^(Value&);
     Value operator^(double);
 };
