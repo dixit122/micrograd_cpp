@@ -3,9 +3,12 @@
 
 int main()
 {
-    Value a(5,"a");
-    Value b(3,"b");
+    Value a(10,"a");
+    Value b(5,"b");
 
-    Value c = 2.0 - a;
-    std::cout << c;
+    Value c = a + b;
+    Value d = c + c;
+
+    d.backward();
+    std::cout << a << b << c << d << std::endl;
 }

@@ -11,7 +11,6 @@ std::ostream& operator<<(std::ostream &out_stream, Value &obj) noexcept {
 // addition
 Value Value::operator+(Value &other){
     Value out = Value();
-    out.ptr = std::make_shared<valueData>();
     out.ptr->data = this->ptr->data + other.ptr->data;
     out.ptr->children = {this->ptr,other.ptr};
     out.ptr->op = "+";
@@ -47,7 +46,6 @@ Value operator+(double val,Value &other){
 // multiplication
 Value Value::operator*(Value& other){
     Value out = Value();
-    out.ptr = std::make_shared<valueData>();
     out.ptr->data = this->ptr->data * other.ptr->data;
     out.ptr->label = "*";
     out.ptr->children = {this->ptr,other.ptr};
@@ -82,8 +80,7 @@ Value operator*(double val,Value& other){
 
 // substraction
 Value Value::operator-(Value& other){
-    Value tmp = Value();
-    tmp = other * (-1.0);
+    Value tmp = other * (-1.0);
     return ((*this) + tmp);
 }
 
@@ -100,7 +97,6 @@ Value operator-(double val,Value& other){
 //power
 Value Value::operator^(Value& other){
     Value out = Value();
-    out.ptr = std::make_shared<valueData>();
     out.ptr->data = std::pow(this->ptr->data,other.ptr->data);
     out.ptr->children = {this->ptr,other.ptr};
     out.ptr->op = "^";
@@ -125,4 +121,42 @@ Value Value::operator^(Value& other){
 Value Value::operator^(double val){
     Value other = Value(val);
     return (*this)^(other);
+}
+
+Value operator^(double val,Value& other){
+    Value tmp = Value(val);
+    return tmp ^ other;
+}
+
+//division
+Value Value::operator/(Value& other){
+    Value tmp = other ^ (-1.0);
+    return (*this) * tmp;
+}
+
+Value Value::operator/(double val){
+    Value other = Value(val);
+    return (*this) / (other);
+}
+
+Value operator/(double val,Value& other){
+    Value tmp = Value(val);
+    return tmp / other;
+}
+
+//tanh
+Value Value::tanh(){
+    Value out = Value();
+    out.ptr->data = std::tanh(this->ptr->data);
+    out.ptr->children = {this->ptr,nullptr};
+    out.ptr->op = "tanh";
+    std::weak_ptr<valueData> out_ptr = out.ptr;
+
+    out.ptr->_backward = [out_ptr](){
+        if(auto out = out_ptr.lock()){
+            double this_data = out->data;
+            out->children[0]->grad += 1.0 - (this_data * this_data);
+        }
+    };
+    return out;
 }

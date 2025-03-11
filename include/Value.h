@@ -46,7 +46,9 @@ public:
     std::shared_ptr<valueData> ptr;
 
     /* explicitely defining the default constuctor */
-    Value() = default;
+    Value() {
+        ptr = std::make_shared<valueData>();
+    };
 
     /* main constructor */
     Value(double _data,std::string _label = "",std::vector<std::shared_ptr<valueData>> _children = {nullptr,nullptr},std::string _op = "",std::function<void()> __backward = nullptr){
@@ -91,13 +93,29 @@ public:
     ~Value(){}
 
     /* getter functions */
-
     double getdata(){
         return this->ptr->data;
     }
 
     double getGrad(){
         return this->ptr->grad;
+    }
+
+    std::string getlabel(){
+        return this->ptr->label;
+    }
+
+    /* setter functions */
+    void setdata(double data){
+        this->ptr->data = data;
+    }
+
+    void setGrad(double grad){
+        this->ptr->grad = grad;
+    }
+
+    void setlabel(const std::string& label){
+        this->ptr->label = label;
     }
 
     /* for printing the Value object (right now implemented by overloading the ostream << operator)*/
@@ -145,4 +163,13 @@ public:
     //power
     Value operator^(Value&);
     Value operator^(double);
+    friend Value operator^(double, Value&);
+
+    //division
+    Value operator/(Value&);
+    Value operator/(double);
+    friend Value operator/(double, Value&);
+
+    //tanh
+    Value tanh();
 };
